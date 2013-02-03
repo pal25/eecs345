@@ -48,14 +48,17 @@
      ((pair? (car l)) (cons (dup* (car l)) (cons (dup* (car l)) (dup* (cdr l)))))
      (else (cons (car l) (cons (car l) (dup* (cdr l))))))))
 
-(define myremove*
-  (lambda (cmp? a l)
+(define removedups*
+  (lambda (l)
     (cond
      ((null? l) '())
-     ((cmp? a (car l)) (myremove* cmp? a (cdr l)))
-     ((pair? (car l)) (cons (myremove* cmp? a (car l)) (myremove* cmp? a (cdr l))))
-     (else (cons (car l) (myremove* cmp? a (cdr l)))))))
+     ((pair? (car l)) (cons (removedups* (car l)) (removedups* (cdr l))))
+     ((and (pair? (cdr l)) (eq? (car l) (car (cdr l)))) (removedups* (cdr l)))
+     (else (cons (car l) (removedups* (cdr l)))))))
 
+
+; PART OF removedups**
+; Takes to lists and compares them
 (define listeq?
   (lambda (l1 l2)
     (cond
@@ -65,26 +68,14 @@
      ((and (pair? (car l1)) (pair? (car l2))) (and (listeq? (car l2) (car l2)) (listeq? (cdr l1) (cdr l2))))
      (else #f))))
 
-(define removedups*
+(define removedups** ; Close, weird '() at EOL error
   (lambda (l)
     (cond
      ((null? l) '())
-     ((pair? (car l)) (cons (removedups* (car l)) (removedups* (cdr l))))
-     ((and (pair? (cdr l)) (eq? (car l) (car (cdr l)))) (removedups* (cdr l)))
-     (else (cons (car l) (removedups* (cdr l)))))))
+     ((and (and (pair? (car l)) (pair? (car (cdr l)))) (listeq? (removedups* (car l)) (removedups* (car (cdr l))))) (cons (removedups* (car l)) (removedups** (cdr (cdr l)))))
+      ((and (pair? (cdr l)) (eq? (car l) (car (cdr l)))) (removedups** (cdr l)))
+     (else (cons (car l) (removedups** (cdr l)))))))
 
-(define rmlistdups
-  (lambda (a l)
-    (cond
-     ((null? l) '())
-     ((eq? a (car l)) (rmlistdups a (cdr l)))
-     (else (cons (car l) (rmlistdups a (cdr l)))))))
-
-(define removedups** ;Not close...
-  (lambda (l)
-    (cond
-     ((null? l) '())
-     ((pair? (car l)) 
 
 ; PART OF TRANSPOSE
 ; cars: Takes a list of lists and returns the first element of each sublist
@@ -104,7 +95,7 @@
      ((null? (car l)) '())
      (else (cons (cdr (car l)) (cdrs (cdr l)))))))
 
-(define transpose ; Close, () at the end is weird...
+(define transpose
   (lambda (l)
     (cond
      ((null? l) '())
