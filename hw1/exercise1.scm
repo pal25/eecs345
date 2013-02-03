@@ -33,12 +33,12 @@
      ((null? (cdr l)) (deepcons (car l) '()))
      (else (deepcons (deepcons (car l) '()) (nestlistfront (cdr l)))))))
 
-(define numparens* ;Needs work, not counting right
+(define numparens*
   (lambda (l)
     (cond
-     ((null? l) '0)
+     ((null? l) '1)
      ((null? (car l)) (+ 1 (numparens* (cdr l))))
-     ((pair? (car l)) (+ (+ 1 (numparens* (car l))) (numparens* (cdr l))))
+     ((pair? (car l)) (+ (numparens* (car l)) (numparens* (cdr l))))
      (else (numparens* (cdr l))))))
 
 (define dup* 
