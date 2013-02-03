@@ -79,14 +79,27 @@
      ((list? (car l)) (cons (car l) (myremove* listeq? (car l) (cdr l))))
      (else (cons (car l) (myremove* eq? (car l) (cdr l)))))))
 
+; PART OF TRANSPOSE
+; cars: Takes a list of lists and returns the first element of each sublist
 (define cars
   (lambda (l)
     (cond
      ((null? l) '())
+     ((null? (car l)) '())
      (else (cons (car (car l)) (cars (cdr l)))))))
 
-(define transpose
+; PART OF TRANSPOSE
+; cdrs: Takes a list of lists and returns the cdrs of each list 
+(define cdrs
   (lambda (l)
     (cond
      ((null? l) '())
-     (else (cons (cars l) (transpose (cdr l)))))))
+     ((null? (car l)) '())
+     (else (cons (cdr (car l)) (cdrs (cdr l)))))))
+
+(define transpose ; Close, () at the end is weird...
+  (lambda (l)
+    (cond
+     ((null? l) '())
+     (else (cons (cars l) (transpose (cdrs l)))))))
+
