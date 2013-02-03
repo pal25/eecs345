@@ -65,19 +65,26 @@
      ((and (pair? (car l1)) (pair? (car l2))) (and (listeq? (car l2) (car l2)) (listeq? (cdr l1) (cdr l2))))
      (else #f))))
 
-(define removedups* ;close doesnt remove some dups
+(define removedups*
   (lambda (l)
     (cond
      ((null? l) '())
      ((pair? (car l)) (cons (removedups* (car l)) (removedups* (cdr l))))
-     (else (cons (car l) (removedups* (myremove* eq? (car l) (cdr l))))))))
+     ((and (pair? (cdr l)) (eq? (car l) (car (cdr l)))) (removedups* (cdr l)))
+     (else (cons (car l) (removedups* (cdr l)))))))
+
+(define rmlistdups
+  (lambda (a l)
+    (cond
+     ((null? l) '())
+     ((eq? a (car l)) (rmlistdups a (cdr l)))
+     (else (cons (car l) (rmlistdups a (cdr l)))))))
 
 (define removedups** ;Not close...
   (lambda (l)
     (cond
      ((null? l) '())
-     ((list? (car l)) (cons (car l) (myremove* listeq? (car l) (cdr l))))
-     (else (cons (car l) (myremove* eq? (car l) (cdr l)))))))
+     ((pair? (car l)) 
 
 ; PART OF TRANSPOSE
 ; cars: Takes a list of lists and returns the first element of each sublist
@@ -101,5 +108,5 @@
   (lambda (l)
     (cond
      ((null? l) '())
+     ((null? (car l)) '())
      (else (cons (cars l) (transpose (cdrs l)))))))
-
