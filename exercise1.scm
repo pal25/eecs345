@@ -36,7 +36,7 @@
 (define numparens* ;Needs work, not counting right
   (lambda (l)
     (cond
-     ((null? l) '1)
+     ((null? l) '0)
      ((null? (car l)) (+ 1 (numparens* (cdr l))))
      ((pair? (car l)) (+ (+ 1 (numparens* (car l))) (numparens* (cdr l))))
      (else (numparens* (cdr l))))))
@@ -72,8 +72,9 @@
   (lambda (l)
     (cond
      ((null? l) '())
-     ((and (and (pair? (car l)) (pair? (car (cdr l)))) (listeq? (removedups* (car l)) (removedups* (car (cdr l))))) (cons (removedups* (car l)) (removedups** (cdr (cdr l)))))
-      ((and (pair? (cdr l)) (eq? (car l) (car (cdr l)))) (removedups** (cdr l)))
+     ((and (and (pair? (car l)) (pair? (car (cdr l)))) (listeq? (removedups* (car l)) (removedups* (car (cdr l))))) 
+      (cons (removedups* (car l)) (removedups** (cdr (cdr l)))))
+     ((and (pair? (cdr l)) (eq? (car l) (car (cdr l)))) (removedups** (cdr l)))
      (else (cons (car l) (removedups** (cdr l)))))))
 
 
