@@ -9,6 +9,7 @@
   (lambda (l)
     (cond
      ((null? l) '())
+     ((null? (cdr l)) (cons (car l) '()))
      ((eq? (car l) (car (cdr l))) (removedups (cdr l)))
      (else (cons (car l) (removedups (cdr l)))))))
 
@@ -56,7 +57,6 @@
      ((and (pair? (cdr l)) (eq? (car l) (car (cdr l)))) (removedups* (cdr l)))
      (else (cons (car l) (removedups* (cdr l)))))))
 
-
 ; PART OF removedups**
 ; Takes to lists and compares them
 (define listeq?
@@ -72,11 +72,10 @@
   (lambda (l)
     (cond
      ((null? l) '())
-     ((and (and (pair? (car l)) (pair? (car (cdr l)))) (listeq? (removedups* (car l)) (removedups* (car (cdr l))))) 
+     ((and (and (pair? (car l)) (pair? (car (cdr l)))) (listeq? (removedups* (car l)) (removedups* (cdr (cdr l)))))
       (cons (removedups* (car l)) (removedups** (cdr (cdr l)))))
      ((and (pair? (cdr l)) (eq? (car l) (car (cdr l)))) (removedups** (cdr l)))
      (else (cons (car l) (removedups** (cdr l)))))))
-
 
 ; PART OF TRANSPOSE
 ; cars: Takes a list of lists and returns the first element of each sublist
@@ -84,7 +83,6 @@
   (lambda (l)
     (cond
      ((null? l) '())
-     ((null? (car l)) '())
      (else (cons (car (car l)) (cars (cdr l)))))))
 
 ; PART OF TRANSPOSE
@@ -93,7 +91,6 @@
   (lambda (l)
     (cond
      ((null? l) '())
-     ((null? (car l)) '())
      (else (cons (cdr (car l)) (cdrs (cdr l)))))))
 
 (define transpose
