@@ -1,4 +1,5 @@
 (load "verySimpleParser.scm")
+(load "environment.scm")
 (load "exprs.scm")
 
 (define interpret
@@ -8,7 +9,7 @@
 		     newenv))))
 
 (define interpret-stmt-list
-  (lambda (parsetree, env)
+  (lambda (parsetree env)
     (cond
      ((null? parsetree) env)
      (else (interpret-stmt-list (cdr parsetree)
@@ -16,7 +17,7 @@
 						env))))))
 
 (define interpret-stmt
-  (lambda (stmt, env)
+  (lambda (stmt env)
     (cond
      ((eq? '= (car stmt))
       (interpret-assign stmt env))
@@ -26,5 +27,26 @@
       (interpret-if stmt env))
      ((eq? 'return (car stmt))
       (interpret-return stmt env))
-     ((expression? stmt)
-      (value stmt)))))
+
+(define interpret-assign
+  (lambda (stmt env)
+    (cond
+     ;save room for return value
+     (else
+      (env-update (LHS stmt) (RHS stmt) env)))))
+
+(define LHS
+  (lambda (stmt)
+    (car (cdr stmt))))
+
+(define RHS
+  (lambda (stmt)
+    (car (cdr (cdr stmt)))))
+
+(define interpret-var
+  (lambda (stmt env)
+    (cond
+     ((null? (cdr (cdr stmt)))
+      (env-bind (LHS stmt) '() env))
+     ((expression? (RHS stmt))
+      (env-bind (LHS stmt) (value (RHS stmt) env) env)))))
