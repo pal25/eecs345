@@ -5,7 +5,7 @@
     (cond
      ((null? env) '())
      ((eq? var (first-var env)) (first-val env))
-     (else (lookup var (cdr env))))))
+     (else (env-lookup var (cdr env))))))
 
 (define env-bind
   (lambda (var val env)

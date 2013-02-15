@@ -4,7 +4,7 @@
 
 (define interpret
   (lambda (filename)
-    (lookup 'return (interpret-statement-list
+    (env-lookup 'return (interpret-stmt-list
 		     (parser filename)
 		     newenv))))
 
@@ -26,7 +26,7 @@
      ((eq? 'if (car stmt))
       (interpret-if stmt env))
      ((eq? 'return (car stmt))
-      (interpret-return stmt env))
+      (interpret-return stmt env)))))
 
 (define interpret-assign
   (lambda (stmt env)
@@ -47,6 +47,36 @@
   (lambda (stmt env)
     (cond
      ((null? (cdr (cdr stmt)))
-      (env-bind (LHS stmt) '() env))
+      (env-bind (LHS stmt) 'NEWVAR env))
      ((expression? (RHS stmt))
       (env-bind (LHS stmt) (value (RHS stmt) env) env)))))
+
+(define interpret-return
+  (lambda (stmt env)
+    (cond
+    ((expression? (LHS stmt))
+     (env-bind 'return (value (LHS stmt) env) env))
+    (else
+     (env-bind 'return (env-lookup (LHS stmt) env))))))
+
+(define interpret-if
+  (lambda (stmt env)
+    (cond
+     ((value (if-conditional stmt) env)
+      (interpret-stmt (if-thenstmt stmt) env))
+     ((not (null? (if-optelse stmt)))
+      (interpret-if (if-optelse stmt) env)))))
+     
+(define if-conditional
+  (lambda (stmt)
+    (car (cdr stmt))))
+
+(define if-thenstmt
+  (lambda (stmt)
+    (car (cdr (cdr stmt)))))
+
+(define if-optelse
+  (lambda (stmt)
+    (cond
+     ((null? (cdr (cdr (cdr stmt)))) '())
+     (else (car (cdr (cdr (cdr stmt))))))))
