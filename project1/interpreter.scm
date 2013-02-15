@@ -62,7 +62,7 @@
 (define interpret-if
   (lambda (stmt env)
     (cond
-     ((value (if-conditional stmt) env)
+     ((conditional (if-conditional stmt) env)
       (interpret-stmt (if-thenstmt stmt) env))
      ((not (null? (if-optelse stmt)))
       (interpret-if (if-optelse stmt) env)))))
