@@ -37,6 +37,7 @@
   (lambda (expr env)
     (cond
      ((number? expr) expr)
+     ((eq? expr 'NEWVAR) 'NEWVAR)
      ((not (pair? expr)) (env-lookup expr env))
      ((null? (cdr expr)) (value (car expr) env))
      ((and (= (length expr) 2) (eq? '- (operator expr))) (* -1 (value (operand1 expr) env)))

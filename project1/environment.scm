@@ -9,7 +9,11 @@
 
 (define env-bind
   (lambda (var val env)
-    (cons (cons var (cons val '())) env)))
+    (cond
+     ((expression? val)
+      (cons (cons var (cons (value val env) '())) env))
+     (else
+      (cons (cons var (cons val '())) env)))))
 
 (define env-update
   (lambda (var val env)

@@ -31,6 +31,8 @@
 (define interpret-assign
   (lambda (stmt env)
     (cond
+     ;(letrec ((env (cons (value (RHS stmt)) env)))
+       ;(value (RHS stmt)))
      ;save room for return value
      (else
       (env-update (LHS stmt) (RHS stmt) env)))))
