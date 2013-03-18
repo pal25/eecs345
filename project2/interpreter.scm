@@ -38,7 +38,7 @@
 (define interpret-if
   (lambda (stmt env)
     (cond
-     ((interpret-value (cadr stmt) env) (interpret-stmt (caddr stmt) env))
+     ((eq? (interpret-value (cadr stmt) env) 'true) (interpret-stmt (caddr stmt) env))
      ((not (null? (interpret-else stmt))) (interpret-stmt (interpret-else stmt) env))
      (else env))))
      
