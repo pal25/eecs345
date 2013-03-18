@@ -67,10 +67,33 @@
      ((eq? '<= (operator stmt)) ((interpret-boolean <=) stmt env))
      ((eq? '!= (operator stmt)) ((interpret-boolean (lambda (a b) (not (eq? a b)))) stmt env))
      ((eq? '== (operator stmt)) ((interpret-boolean (lambda (a b) (eq? a b))) stmt env))
-     ((eq? '|| (operator stmt)) ((interpret-boolean (lambda (a b) (or a b))) stmt env))
-     ((eq? '&& (operator stmt)) ((interpret-boolean (lambda (a b) (and a b))) stmt env))
-     ((eq? '! (operator stmt)) ((interpret-boolean (lambda (a) (not a))) stmt env))
+     ((eq? '|| (operator stmt)) ((interpret-boolean (lambda (a b)
+						      (cond
+						       ((and (eq? a 'true) (eq? b 'true)) #t)
+						       ((and (eq? a 'true) (eq? b 'false)) #t)
+						       ((and (eq? a 'false) (eq? b 'true)) #t)
+						       ((and (eq? a 'false) (eq? b 'false)) #f))))
+				 stmt env))
+     ((eq? '&& (operator stmt)) ((interpret-boolean (lambda (a b)
+						       (cond
+						       ((and (eq? a 'true) (eq? b 'true)) #t)
+						       ((and (eq? a 'true) (eq? b 'false)) #f)
+						       ((and (eq? a 'false) (eq? b 'true)) #f)
+						       ((and (eq? a 'false) (eq? b 'false)) #f))))
+				 stmt env))
+     ((eq? '! (operator stmt)) ((interpret-unary-boolean (lambda (a) (cond ((eq? a 'true) #f)
+									   ((eq? a 'false) #t))))
+				stmt env))
      (else (error "Invalid expression")))))
+
+(define interpret-unary-boolean
+  (lambda (op)
+    (lambda (stmt env)
+      (cond
+       ((eq? stmt 'true) #t)
+       ((eq? stmt 'false) #f)
+       ((op (interpret-value (operand1 stmt) env)) 'true)
+       (else 'false)))))
 
 (define interpret-boolean
   (lambda (op)
