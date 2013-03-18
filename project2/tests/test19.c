@@ -1,5 +1,5 @@
-;description: Multiple assignments should work
-;value: 30
+description: Multiple assignments should work
+value: 30
 
 var x;
 var y;

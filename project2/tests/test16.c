@@ -1,5 +1,5 @@
-;description: Booleans should really work
-;value: 100
+description: Booleans should really work
+value: 100
 
 var x = 10;
 var y = 20;

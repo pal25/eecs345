@@ -1,5 +1,5 @@
-;description: if/else >= should work
-;value: 6
+description: if/else >= should work
+value: 6
 
 var x = 5;
 var y = 6;

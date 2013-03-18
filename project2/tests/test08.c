@@ -1,5 +1,5 @@
-;description: != should work
-;value: 10
+description: != should work
+value: 10
 
 var x = 5;
 var y = 6;

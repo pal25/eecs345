@@ -1,5 +1,5 @@
-;description: Multiple assignment inside boolean should work
-;value: 11
+description: Multiple assignment inside boolean should work
+value: 11
 
 var x;
 var y;

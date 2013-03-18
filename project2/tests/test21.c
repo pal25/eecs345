@@ -1,5 +1,5 @@
-;description: Crazy assignments should work.
-;value: 1106
+description: Crazy assignments should work.
+value: 1106
 
 var x;
 var y = (x = 5) + (x = 6);

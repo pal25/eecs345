@@ -1,5 +1,5 @@
-;description: Assignment should work
-;value: 10
+description: Assignment should work
+value: 10
 
 var z;
 z = 10;
