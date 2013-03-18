@@ -39,14 +39,14 @@
   (lambda (stmt env)
     (cond
      ((eq? (interpret-value (cadr stmt) env) 'true) (interpret-stmt (caddr stmt) env))
-     ((not (null? (interpret-else stmt))) (interpret-stmt (interpret-else stmt) env))
+     ((interpret-else? stmt) (interpret-stmt (cadddr stmt) env))
      (else env))))
      
-(define interpret-else
+(define interpret-else?
   (lambda (stmt)
     (cond
-     ((null? (cdddr stmt)) '())
-     (else (cadddr stmt)))))
+     ((null? (cdddr stmt)) #f)
+     (else #t))))
 
 (define interpret-value
   (lambda (stmt env)
@@ -90,8 +90,6 @@
   (lambda (op)
     (lambda (stmt env)
       (cond
-       ((eq? stmt 'true) #t)
-       ((eq? stmt 'false) #f)
        ((op (interpret-value (operand1 stmt) env)) 'true)
        (else 'false)))))
 
@@ -99,8 +97,6 @@
   (lambda (op)
     (lambda (stmt env)
       (cond
-       ((eq? stmt 'true) #t)
-       ((eq? stmt 'false) #f)
        ((op (interpret-value (operand1 stmt) env) (interpret-value (operand2 stmt) env)) 'true)
        (else 'false)))))
 	    
