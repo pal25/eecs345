@@ -20,26 +20,36 @@
      ((eq? 'return (car stmt)) (interpret-return stmt env))
      (else (error "Error: Not a valid statement")))))
 
+(define interpret-sidefx
+  (lambda (stmt env)
+    (cond
+     ((number? stmt) env)
+     ((atom? stmt) env)
+     ((eq? (car stmt) '!) (interpret-sidefx (LHS stmt) env))
+     ((and (eq? (car stmt) '-) (eq? 2 (length stmt))) (interpret-sidefx (LHS stmt) env))
+     ((member? (car stmt) '(+ - * / % == != > >= < <= && ||)) (interpret-sidefx (RHS stmt) (interpret-sidefx (LHS stmt) env)))
+     (else (interpret-stmt stmt env)))))
+
 (define interpret-assign
   (lambda (stmt env)
-    (env-update (LHS stmt) (interpret-value (RHS stmt) env) env)))
+    (env-update (LHS stmt) (interpret-value (RHS stmt) env) (interpret-sidefx (RHS stmt) env))))
   
 (define interpret-var
   (lambda (stmt env)
     (cond
      ((env-declared? (LHS stmt) env) (error "Error: Cant redeclare variables"))
      ((null? (cddr stmt)) (env-bind (LHS stmt) '() env))
-     (else (env-bind (LHS stmt) (interpret-value (RHS stmt) env) env)))))
+     (else (env-bind (LHS stmt) (interpret-value (RHS stmt) env) (interpret-sidefx (RHS stmt) env))))))
   
 (define interpret-return
   (lambda (stmt env)
-    (env-bind 'return (interpret-value (LHS stmt) env) env)))
+    (env-bind 'return (interpret-value (LHS stmt) env) (interpret-sidefx (LHS stmt) env))))
   
 (define interpret-if
   (lambda (stmt env)
     (cond
-     ((eq? (interpret-value (cadr stmt) env) 'true) (interpret-stmt (caddr stmt) env))
-     ((interpret-else? stmt) (interpret-stmt (cadddr stmt) env))
+     ((eq? (interpret-value (cadr stmt) env) 'true) (interpret-stmt (caddr stmt) (interpret-sidefx (cadr stmt) env)))
+     ((interpret-else? stmt) (interpret-stmt (cadddr stmt) (interpret-sidefx (cadr stmt) env)))
      (else env))))
      
 (define interpret-else?
@@ -56,6 +66,7 @@
      ((eq? stmt 'true) 'true)
      ((eq? stmt 'false) 'false)
      ((atom? stmt) (env-lookup stmt env))
+     ((eq? '= (operator stmt)) (interpret-value (car (cddr stmt)) env))
      ((eq? '+ (operator stmt)) ((interpret-binary +) stmt env))
      ((eq? '- (operator stmt)) ((interpret-negative -) stmt env))
      ((eq? '* (operator stmt)) ((interpret-binary *) stmt env))
@@ -97,7 +108,7 @@
   (lambda (op)
     (lambda (stmt env)
       (cond
-       ((op (interpret-value (operand1 stmt) env) (interpret-value (operand2 stmt) env)) 'true)
+       ((op (interpret-value (operand1 stmt) env) (interpret-value (operand2 stmt) (interpret-sidefx (operand1 stmt) env))) 'true)
        (else 'false)))))
 	    
 
@@ -105,7 +116,7 @@
   (lambda (op)
     (lambda (stmt env)
       (op (interpret-value (operand1 stmt) env)
-	  (interpret-value (operand2 stmt) env)))))
+	  (interpret-value (operand2 stmt) (interpret-sidefx (operand1 stmt) env))))))
 
 (define interpret-negative
   (lambda (op)
@@ -138,3 +149,14 @@
 (define atom?
   (lambda (stmt)
     (not (or (pair? stmt) (null? stmt)))))
+
+(define member?
+  (lambda (a l)
+    (cond
+     ((null? l) #f)
+     ((eq? (car l) a) #t)
+     (else (member? a (cdr l))))))
+
+(define expr-op-list '(+ - * / %))
+(define bool-op-list '(== != > >= < <= && ||))
+
