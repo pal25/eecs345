@@ -43,7 +43,8 @@
      ((atom? stmt) env)
      ((eq? (car stmt) '!) (interpret-sidefx (LHS stmt) env))
      ((and (eq? (car stmt) '-) (eq? 2 (length stmt))) (interpret-sidefx (LHS stmt) env))
-     ((member? (car stmt) '(+ - * / % == != > >= < <= && ||)) (interpret-sidefx (RHS stmt) (interpret-sidefx (LHS stmt) env)))
+     ((member? (car stmt) '(+ - * / % == != > >= < <= && ||)) 
+      (interpret-sidefx (RHS stmt) (interpret-sidefx (LHS stmt) env)))
      (else (interpret-stmt stmt env undef-return undef-break undef-continue)))))
 
 (define interpret-begin
@@ -56,7 +57,8 @@
 	       (letrec ((loop (lambda (condition body env)
 				(call/cc (lambda (continue)
 					   (cond
-					    ((eq? (interpret-value condition env) 'true) (loop condition body (interpret-stmt body env return break continue)))
+					    ((eq? (interpret-value condition env) 'true) 
+					     (loop condition body (interpret-stmt body env return break continue)))
 					    (else env)))))))
 		 (loop (cadr stmt) (caddr stmt) env))))))
 											    
@@ -78,8 +80,10 @@
 (define interpret-if
   (lambda (stmt env return break continue)
     (cond
-     ((eq? (interpret-value (cadr stmt) env) 'true) (interpret-stmt (caddr stmt) (interpret-sidefx (cadr stmt) env) return break continue))
-     ((interpret-else? stmt) (interpret-stmt (cadddr stmt) (interpret-sidefx (cadr stmt) env) return break continue))
+     ((eq? (interpret-value (cadr stmt) env) 'true) 
+      (interpret-stmt (caddr stmt) (interpret-sidefx (cadr stmt) env) return break continue))
+     ((interpret-else? stmt) 
+      (interpret-stmt (cadddr stmt) (interpret-sidefx (cadr stmt) env) return break continue))
      (else env))))
      
 (define interpret-else?
