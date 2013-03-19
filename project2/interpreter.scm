@@ -1,23 +1,39 @@
 (load "loopSimpleParser.scm")
 (load "environment.scm")
 
+(define call/cc call-with-current-continuation)
+
 (define interpret
   (lambda (filename)
-    (env-lookup 'return (interpret-stmt-list (parser filename) newenv))))
+    (env-lookup 'return (call/cc 
+			 (lambda (return) 
+			   (interpret-stmt-list (parser filename) newenv return))))))
+
+(define interpret-dbg
+  (lambda (stmt-list)
+    (env-lookup 'return (call/cc
+			 (lambda (return)
+			   (interpret-stmt-list stmt-list newenv return))))))
 
 (define interpret-stmt-list
-  (lambda (parsetree env)
+  (lambda (parsetree env return)
     (cond
      ((null? parsetree) env)
-     (else (interpret-stmt-list (cdr parsetree) (interpret-stmt (car parsetree)	env))))))
+     (else (interpret-stmt-list (cdr parsetree) 
+				(interpret-stmt (car parsetree)	env return undef-break undef-continue)
+				return)))))
 
 (define interpret-stmt
-  (lambda (stmt env)
+  (lambda (stmt env return break continue)
     (cond
      ((eq? '= (car stmt)) (interpret-assign stmt env))
      ((eq? 'var (car stmt)) (interpret-var stmt env))
-     ((eq? 'if (car stmt)) (interpret-if stmt env))
-     ((eq? 'return (car stmt)) (interpret-return stmt env))
+     ((eq? 'if (car stmt)) (interpret-if stmt env return break continue))
+     ((eq? 'while (car stmt)) (interpret-while stmt env return))
+     ((eq? 'break (car stmt)) (break env))
+     ((eq? 'continue (car stmt)) (continue env))
+     ((eq? 'begin (car stmt)) (interpret-begin stmt env ccs))
+     ((eq? 'return (car stmt)) (return (interpret-return stmt env)))
      (else (error "Error: Not a valid statement")))))
 
 (define interpret-sidefx
@@ -28,8 +44,22 @@
      ((eq? (car stmt) '!) (interpret-sidefx (LHS stmt) env))
      ((and (eq? (car stmt) '-) (eq? 2 (length stmt))) (interpret-sidefx (LHS stmt) env))
      ((member? (car stmt) '(+ - * / % == != > >= < <= && ||)) (interpret-sidefx (RHS stmt) (interpret-sidefx (LHS stmt) env)))
-     (else (interpret-stmt stmt env)))))
+     (else (interpret-stmt stmt env undef-return undef-break undef-continue)))))
 
+(define interpret-begin
+  (lambda (stmt env return break continue)
+    (env-pop-layer (interpret-stmt-list (cdr stmt) (env-push-layer env) return))))
+
+(define interpret-while
+  (lambda (stmt env return)
+    (call/cc (lambda (break)
+	       (letrec ((loop (lambda (condition body env)
+				(call/cc (lambda (continue)
+					   (cond
+					    ((eq? (interpret-value condition env) 'true) (loop condition body (interpret-stmt body env return break continue)))
+					    (else env)))))))
+		 (loop (cadr stmt) (caddr stmt) env))))))
+											    
 (define interpret-assign
   (lambda (stmt env)
     (env-update (LHS stmt) (interpret-value (RHS stmt) env) (interpret-sidefx (RHS stmt) env))))
@@ -46,10 +76,10 @@
     (env-bind 'return (interpret-value (LHS stmt) env) (interpret-sidefx (LHS stmt) env))))
   
 (define interpret-if
-  (lambda (stmt env)
+  (lambda (stmt env return break continue)
     (cond
-     ((eq? (interpret-value (cadr stmt) env) 'true) (interpret-stmt (caddr stmt) (interpret-sidefx (cadr stmt) env)))
-     ((interpret-else? stmt) (interpret-stmt (cadddr stmt) (interpret-sidefx (cadr stmt) env)))
+     ((eq? (interpret-value (cadr stmt) env) 'true) (interpret-stmt (caddr stmt) (interpret-sidefx (cadr stmt) env) return break continue))
+     ((interpret-else? stmt) (interpret-stmt (cadddr stmt) (interpret-sidefx (cadr stmt) env) return break continue))
      (else env))))
      
 (define interpret-else?
@@ -157,6 +187,14 @@
      ((eq? (car l) a) #t)
      (else (member? a (cdr l))))))
 
-(define expr-op-list '(+ - * / %))
-(define bool-op-list '(== != > >= < <= && ||))
+(define undef-return
+  (lambda ()
+    (error "Return cannot be used in this context")))
 
+(define undef-break
+  (lambda ()
+    (error "Break cannot be used in this context")))
+
+(define undef-continue
+  (lambda ()
+    (error "Continue cannot be used in this context")))
