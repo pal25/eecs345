@@ -1,5 +1,5 @@
 description: Boolean operater (not !) should work
-value: true
+value: 'true
 
 var x = 10;
 var y = 20;

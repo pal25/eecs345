@@ -1,4 +1,4 @@
-(load "verySimpleParser.scm")
+(load "loopSimpleParser.scm")
 (load "environment.scm")
 
 (define interpret
@@ -28,7 +28,7 @@
   (lambda (stmt env)
     (cond
      ((env-declared? (LHS stmt) env) (error "Error: Cant redeclare variables"))
-     ((null? (cddr stmt)) (env-bind (LHS stmt) 'NEWVAR env))
+     ((null? (cddr stmt)) (env-bind (LHS stmt) '() env))
      (else (env-bind (LHS stmt) (interpret-value (RHS stmt) env) env)))))
   
 (define interpret-return
@@ -51,8 +51,8 @@
 (define interpret-value
   (lambda (stmt env)
     (cond
+     ((null? stmt) '())
      ((number? stmt) stmt)
-     ((eq? stmt 'NEWVAR) 'NEWVAR)
      ((eq? stmt 'true) 'true)
      ((eq? stmt 'false) 'false)
      ((atom? stmt) (env-lookup stmt env))

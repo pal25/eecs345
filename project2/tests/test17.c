@@ -1,5 +1,5 @@
 description: Falsiness should also work
-value: false
+value: 'false
 
 var x = 100 % 2 == 0;
 var y = 10 >= 20;
