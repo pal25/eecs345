@@ -26,11 +26,18 @@
   (lambda (var val env)
     (cons (cons (cons var (cons (interpret-value val env) '())) (top-layer env)) (cdr env))))
 
+(define env-bind-layer
+  (lambda (var val layer)
+    (cond
+     ((eq? var (car (car layer))) (cons (cons var (cons (interpret-value val layer) '())) (cdr layer)))
+     (else (cons (car layer) (env-bind-layer var val (cdr layer)))))))
+
 (define env-update
   (lambda (var val env)
     (cond
-     ((not (env-declared? var env)) (error "Error: Variable undeclared"))
-     (else (env-bind var val env)))))
+     ((null? env) (error "Error: Variable undeclared"))
+     ((env-declared-layer? var (top-layer env)) (cons (env-bind-layer var val (top-layer env)) (cdr env)))
+     (else (cons (top-layer env) (env-update var val (cdr env)))))))
 
 (define env-declared?
   (lambda (var env)

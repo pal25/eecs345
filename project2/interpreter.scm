@@ -32,7 +32,7 @@
      ((eq? 'while (car stmt)) (interpret-while stmt env return))
      ((eq? 'break (car stmt)) (break env))
      ((eq? 'continue (car stmt)) (continue env))
-     ((eq? 'begin (car stmt)) (interpret-begin stmt env ccs))
+     ((eq? 'begin (car stmt)) (interpret-begin stmt env return break continue))
      ((eq? 'return (car stmt)) (return (interpret-return stmt env)))
      (else (error "Error: Not a valid statement")))))
 
@@ -41,15 +41,20 @@
     (cond
      ((number? stmt) env)
      ((atom? stmt) env)
-     ((eq? (car stmt) '!) (interpret-sidefx (LHS stmt) env))
-     ((and (eq? (car stmt) '-) (eq? 2 (length stmt))) (interpret-sidefx (LHS stmt) env))
+     ((eq? '! (car stmt)) (interpret-sidefx (LHS stmt) env))
+     ((and (eq? '- (car stmt)) (eq? 2 (length stmt))) (interpret-sidefx (LHS stmt) env))
      ((member? (car stmt) '(+ - * / % == != > >= < <= && ||)) 
       (interpret-sidefx (RHS stmt) (interpret-sidefx (LHS stmt) env)))
+     ((eq? 'begin (car stmt)) env)
      (else (interpret-stmt stmt env undef-return undef-break undef-continue)))))
 
 (define interpret-begin
   (lambda (stmt env return break continue)
-    (env-pop-layer (interpret-stmt-list (cdr stmt) (env-push-layer env) return))))
+    (letrec ((loop (lambda (stmt-list env return break continue)
+		     (cond
+		      ((null? stmt-list) env)
+		      (else (loop (cdr stmt-list) (interpret-stmt (car stmt-list) env return break continue) return break continue))))))
+      (env-pop-layer (loop (cdr stmt) (env-push-layer env) return break continue)))))
 
 (define interpret-while
   (lambda (stmt env return)
@@ -192,13 +197,13 @@
      (else (member? a (cdr l))))))
 
 (define undef-return
-  (lambda ()
+  (lambda (stmt)
     (error "Return cannot be used in this context")))
 
 (define undef-break
-  (lambda ()
+  (lambda (stmt)
     (error "Break cannot be used in this context")))
 
 (define undef-continue
-  (lambda ()
+  (lambda (stmt)
     (error "Continue cannot be used in this context")))
