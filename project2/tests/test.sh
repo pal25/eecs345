@@ -23,9 +23,9 @@ fi
 result=`echo $result | sed -e 's/^ *//g'`
 
 if [[ $value = $result || ( $value = "ERROR" && $result ) ]] ; then
-    echo -e "\e[00;32m[passed] $desc ($1)\e[00m"
+    echo -e "\e[32;1m[passed] \e[00;32m$desc ($1)\e[00m"
     exit
 else
-    echo -e "\e[00;31m[failed] $desc -- Expected \"$value\", got \"$result\" ($1)\e[00m"
+    echo -e "\e[34;1m[failed] \e[00;32m$desc -- Expected \"$value\", got \"$result\" ($1)\e[00m"
     exit
 fi

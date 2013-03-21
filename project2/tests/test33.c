@@ -3,7 +3,7 @@ value: 6
 
 var a = 0;
 var b = 0;
-while(a > 12) {
+while(a < 12) {
     if(a % 2 == 0) {
 	a = a + 1;
 	continue;

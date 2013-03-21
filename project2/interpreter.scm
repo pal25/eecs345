@@ -46,6 +46,7 @@
      ((member? (car stmt) '(+ - * / % == != > >= < <= && ||)) 
       (interpret-sidefx (RHS stmt) (interpret-sidefx (LHS stmt) env)))
      ((eq? 'begin (car stmt)) env)
+     ((eq? 'break (car stmt)) env)
      (else (interpret-stmt stmt env undef-return undef-break undef-continue)))))
 
 (define interpret-begin
@@ -60,11 +61,11 @@
   (lambda (stmt env return)
     (call/cc (lambda (break)
 	       (letrec ((loop (lambda (condition body env)
-				(call/cc (lambda (continue)
-					   (cond
-					    ((eq? (interpret-value condition env) 'true) 
-					     (loop condition body (interpret-stmt body env return break continue)))
-					    (else env)))))))
+				(cond
+				 ((eq? (interpret-value condition env) 'true) 
+				  (loop condition body (call/cc (lambda (continue)
+								  (interpret-stmt body (interpret-sidefx condition env) return break continue)))))
+				 (else (interpret-sidefx condition env))))))
 		 (loop (cadr stmt) (caddr stmt) env))))))
 											    
 (define interpret-assign
