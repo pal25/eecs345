@@ -7,21 +7,21 @@
   (lambda (filename)
     (env-lookup 'return (call/cc 
 			 (lambda (return) 
-			   (interpret-stmt-list (parser filename) newenv return))))))
+			   (interpret-stmt-list (parser filename) newenv return undef-break undef-continue))))))
 
 (define interpret-dbg
   (lambda (stmt-list)
     (env-lookup 'return (call/cc
 			 (lambda (return)
-			   (interpret-stmt-list stmt-list newenv return))))))
+			   (interpret-stmt-list stmt-list newenv return undef-break undef-continue))))))
 
 (define interpret-stmt-list
-  (lambda (parsetree env return)
+  (lambda (parsetree env return break continue)
     (cond
      ((null? parsetree) env)
      (else (interpret-stmt-list (cdr parsetree) 
-				(interpret-stmt (car parsetree)	env return undef-break undef-continue)
-				return)))))
+				(interpret-stmt (car parsetree)	env return break continue)
+				return break continue)))))
 
 (define interpret-stmt
   (lambda (stmt env return break continue)
@@ -51,11 +51,9 @@
 
 (define interpret-begin
   (lambda (stmt env return break continue)
-    (letrec ((loop (lambda (stmt-list env return break continue)
-		     (cond
-		      ((null? stmt-list) env)
-		      (else (loop (cdr stmt-list) (interpret-stmt (car stmt-list) env return break continue) return break continue))))))
-      (env-pop-layer (loop (cdr stmt) (env-push-layer env) return break continue)))))
+    (let ((pop-break (lambda (break-env) (break (env-pop-layer break-env))))
+	  (pop-continue (lambda (continue-env) (continue (env-pop-layer continue env)))))
+      (env-pop-layer (interpret-stmt-list (cdr stmt) (env-push-layer env) return pop-break continue)))))
 
 (define interpret-while
   (lambda (stmt env return)
@@ -75,8 +73,8 @@
 (define interpret-var
   (lambda (stmt env)
     (cond
-     ((env-declared? (LHS stmt) env) (error "Error: Cant redeclare variables"))
-     ((null? (cddr stmt)) (env-bind (LHS stmt) '() env))
+     ((in-layer? (LHS stmt) (top-layer env)) (error "Error: Cant redeclare variables"))
+     ((null? (cddr stmt)) (env-bind (LHS stmt) 'NEWVAR env))
      (else (env-bind (LHS stmt) (interpret-value (RHS stmt) env) (interpret-sidefx (RHS stmt) env))))))
   
 (define interpret-return
