@@ -52,8 +52,8 @@
 (define interpret-begin
   (lambda (stmt env return break continue)
     (let ((pop-break (lambda (break-env) (break (env-pop-layer break-env))))
-	  (pop-continue (lambda (continue-env) (continue (env-pop-layer continue env)))))
-      (env-pop-layer (interpret-stmt-list (cdr stmt) (env-push-layer env) return pop-break continue)))))
+	  (pop-continue (lambda (continue-env) (continue (env-pop-layer continue-env)))))
+      (env-pop-layer (interpret-stmt-list (cdr stmt) (env-push-layer env) return pop-break pop-continue)))))
 
 (define interpret-while
   (lambda (stmt env return)
