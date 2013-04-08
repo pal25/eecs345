@@ -1,19 +1,27 @@
-(load "loopSimpleParser.scm")
+(load "functionParser.scm")
 (load "environment.scm")
 
 (define call/cc call-with-current-continuation)
 
 (define interpret
   (lambda (filename)
-    (env-lookup 'return (call/cc 
-			 (lambda (return) 
-			   (interpret-stmt-list (parser filename) newenv return undef-break undef-continue))))))
+    (interpret-func-call 'main '() (interpret-global-stmt-list (parser filename) newenv))))
 
-(define interpret-dbg
-  (lambda (stmt-list)
-    (env-lookup 'return (call/cc
-			 (lambda (return)
-			   (interpret-stmt-list stmt-list newenv return undef-break undef-continue))))))
+(define interpret-global-stmt-list
+  (lambda (parsetree env)
+    (cond
+     ((null? parsetree) env)
+     (else (interpret-global-stmt-list (cdr parsetree) (interpret-global-stmt (car parsetree) env))))))
+
+(define interpret-global-stmt
+  (lambda (stmt env)
+    (cond
+     ((eq? 'function (car stmt)) (interpret-func-declare stmt env))
+     (else (interpret-stmt stmt env undef-return undef-break undef-continue)))))
+
+(define interpret-func-declare
+  (lambda (stmt env)
+    (env-bind (cadr stmt) (cddr stmt) env)))
 
 (define interpret-stmt-list
   (lambda (parsetree env return break continue)
@@ -22,6 +30,26 @@
      (else (interpret-stmt-list (cdr parsetree) 
 				(interpret-stmt (car parsetree)	env return break continue)
 				return break continue)))))
+
+(define interpret-func-call
+  (lambda (func-name values env)
+    (cond
+     ((eq? 'void (env-lookup 'return (return-env func-name values env))) (env-pop-layer (return-env func-name values env)))
+     (else (env-lookup 'return (return-env func-name values env))))))
+
+(define return-env
+  (lambda (func-name values env)
+    (call/cc
+     (lambda (return)
+       (interpret-stmt-list (cadr (env-lookup func-name env))
+			    (create-func-env (car (env-lookup func-name env)) (interpret-called-values values env) env)
+			    return undef-break undef-continue)))))
+
+(define interpret-called-values
+  (lambda (values env)
+    (cond
+     ((null? values) '())
+     (else (cons (interpret-value (car values) env) (interpret-called-values (cdr values) env))))))
 
 (define interpret-stmt
   (lambda (stmt env return break continue)
@@ -34,6 +62,7 @@
      ((eq? 'continue (car stmt)) (continue env))
      ((eq? 'begin (car stmt)) (interpret-begin stmt env return break continue))
      ((eq? 'return (car stmt)) (return (interpret-return stmt env)))
+     ((eq? 'funcall (car stmt)) (interpret-func-call (cadr stmt) (cddr stmt) env))
      (else (error "Error: Not a valid statement")))))
 
 (define interpret-sidefx
@@ -47,6 +76,7 @@
       (interpret-sidefx (RHS stmt) (interpret-sidefx (LHS stmt) env)))
      ((eq? 'begin (car stmt)) env)
      ((eq? 'break (car stmt)) env)
+     ((eq? 'funcall (car stmt)) env)
      (else (interpret-stmt stmt env undef-return undef-break undef-continue)))))
 
 (define interpret-begin
@@ -79,7 +109,9 @@
   
 (define interpret-return
   (lambda (stmt env)
-    (env-bind 'return (interpret-value (LHS stmt) env) (interpret-sidefx (LHS stmt) env))))
+    (cond
+     ((and (pair? (cadr stmt)) (eq? 'funcall (caadr stmt))) (env-bind 'return (interpret-func-call (cadadr stmt) (cddadr stmt) env) env))
+    (else (env-bind 'return (interpret-value (LHS stmt) env) (interpret-sidefx (LHS stmt) env))))))
   
 (define interpret-if
   (lambda (stmt env return break continue)
@@ -104,6 +136,7 @@
      ((eq? stmt 'true) 'true)
      ((eq? stmt 'false) 'false)
      ((atom? stmt) (env-lookup stmt env))
+     ((eq? 'funcall (operator stmt)) (interpret-func-call (cadr stmt) (cddr stmt) env))
      ((eq? '= (operator stmt)) (interpret-value (car (cddr stmt)) env))
      ((eq? '+ (operator stmt)) ((interpret-binary +) stmt env))
      ((eq? '- (operator stmt)) ((interpret-negative -) stmt env))

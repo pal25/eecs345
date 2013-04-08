@@ -11,7 +11,7 @@ Files
 + **environment.scm:** Contains the environment for the interpreter
 + **lex.scm:** Contains the lexer
 + **loopSimpleParser.scm:** Contains the parser
-+ **tests/ and Makefile:** Contains code to test the interpreter
++ **tests/ and Makefile:** Contains code to test the interpreter (Credit: Tom Dooner/Brian Stack)
 
 Testing
 ========

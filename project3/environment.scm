@@ -1,4 +1,19 @@
-(define newenv '((() ())))
+(define newenv '(((return) (void))))
+
+(define create-func-env
+  (lambda (formal-params values env)
+    (letrec ((add-bindings 
+	      (lambda (formal values env)
+		(cond
+		 ((null? formal) env)
+		 (else (add-bindings (cdr formal) (cdr values) (env-bind (car formal) (car values) env)))))))
+      (add-bindings formal-params values (env-push-layer (env-global-layer env))))))
+
+(define env-global-layer
+  (lambda (env)
+    (cond
+     ((null? (cdr env)) env)
+     (env-global-layer (cdr env)))))
 
 (define env-push-layer
   (lambda (env)
