@@ -34,7 +34,7 @@
 (define interpret-func-call
   (lambda (func-name values env)
     (cond
-     ((eq? 'void (env-lookup 'return (return-env func-name values env))) (env-pop-layer (return-env func-name values env)))
+     ((eq? 'void (env-lookup 'return (return-env func-name values env))) env);(env-pop-layer (return-env func-name values env)))
      (else (env-lookup 'return (return-env func-name values env))))))
 
 (define return-env
@@ -42,7 +42,8 @@
     (call/cc
      (lambda (return)
        (interpret-stmt-list (cadr (env-lookup func-name env))
-			    (create-func-env (car (env-lookup func-name env)) (interpret-called-values values env) env)
+			    (create-func-env (car (env-lookup func-name env)) values env)
+			   ;(create-func-env (car (env-lookup func-name env)) (interpret-called-values values env) env)
 			    return undef-break undef-continue)))))
 
 (define interpret-called-values

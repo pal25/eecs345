@@ -7,11 +7,12 @@
 (define create-func-env
   (lambda (formal-params values env)
     (letrec ((add-bindings 
-	      (lambda (formal values env)
+	      (lambda (formal values env newenv)
 		(cond
-		 ((null? formal) env)
-		 (else (add-bindings (cdr formal) (cdr values) (env-bind (car formal) (car values) env)))))))
-      (add-bindings formal-params values (env-push-layer (env-global-layer env))))))
+		 ((null? formal) newenv)
+		 ((eq? (car formal) '&) (add-bindings (cddr formal) (cdr values) env (env-bind-box (cadr formal) (env-lookup-extra (car values) env top-val-box) newenv)))
+		 (else (add-bindings (cdr formal) (cdr values) env (env-bind (car formal) (interpret-value (car values) env) newenv)))))))
+      (add-bindings formal-params values env (env-push-layer (env-global-layer env))))))
 
 (define env-global-layer
   (lambda (env)
@@ -56,6 +57,12 @@
   (lambda (var val env)
     (cons (cons (cons (box var) (car (top-layer env))) 
 		(cons (cons (box val) (cadr (top-layer env))) '()))
+	  (env-pop-layer env))))
+
+(define env-bind-box
+  (lambda (var val env)
+    (cons (cons (cons (box var) (car (top-layer env)))
+		(cons (cons val (cadr (top-layer env))) '()))
 	  (env-pop-layer env))))
 
 (define env-update
