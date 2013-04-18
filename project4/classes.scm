@@ -12,7 +12,7 @@
   (lambda (stmt class-env)
     (cond
      ((eq? 'static-function (car stmt)) (env-bind 'method-env (interpret-func-declare stmt (class-method-env class-env)) class-env))
-     ((eq? 'static-var (car stmt)) (env-bind 'var-env (interpret-var stmt (class-var-env class-env)) class-env)))))
+     ((eq? 'static-var (car stmt)) (env-bind 'var-env (interpret-var stmt (class-var-env class-env) 'None 'None) class-env)))))
 
 ;class env = (class-var-env instance-vars-env class-method-env extends parent-class)
 (define new-class-env (env-bind 'var-env newenv
@@ -20,6 +20,17 @@
 					  (env-bind 'method-env newenv
 						    (env-bind 'extends 'None
 							      (env-bind 'parent 'None newenv))))))
+
+(define class-var-lookup
+  (lambda (var cls inst env)
+    (let ((var-env (env-lookup 'var-env (env-lookup cls env)))
+	  (inst-env (env-lookup 'inst-env (env-lookup cls env))))
+      (cond
+       ((env-declared? var var-env) (env-lookup var var-env))
+       ((env-declared? var inst-env) (env-lookup var inst-env))
+       ((env-declared? var env) (env-lookup var env))
+       (else (error "Class var lookup failed"))))))
+     
 
 (define class-var-env
   (lambda (class-env)
