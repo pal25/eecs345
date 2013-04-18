@@ -1,8 +1,6 @@
-(define newenv (cons (cons 
-		      (cons (box 'return) '())
-		      (cons (cons (box 'void) '())
-			    '()))
-		     '()))
+(define newenv '((() ())))
+
+(define new-global-env (env-bind 'return 'None newenv))
 
 (define create-func-env
   (lambda (formal-params values env)

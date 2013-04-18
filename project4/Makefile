@@ -1,6 +1,6 @@
 .PHONY: all test clean
 
-TESTS = $(wildcard tests/*.c)
+TESTS = $(wildcard tests/assignment4*.c)
 
 PROGS = $(patsubst %.c,%,$(TESTS))
 

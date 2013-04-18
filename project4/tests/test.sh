@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# XXX: This _may_ work for updating the old tests to be valid now...
 
 RED="\033[0;31m"
 GREEN="\033[0;32m"
@@ -20,18 +21,24 @@ fi
 echo -en "$WHITE + $1 | $desc"
 
 rm tests/temp.c 2>/dev/null
-if [ ! `echo $1 | grep 'assignment3'` ]; then
-  echo "main() {" > tests/temp.c
+if [ ! `echo $1 | egrep 'assignment4'` ]; then
+  echo "class Main {" >> tests/temp.c
+fi
+if [ `echo $1 | egrep 'the-a(1|2)'` ]; then
+  echo "static main() {" >> tests/temp.c
 fi
 tail -n +3 "$1" >> tests/temp.c
-if [ ! `echo $1 | grep 'assignment3'` ]; then
+if [ `echo $1 | egrep 'the-a(1|2)'` ]; then
+  echo -n "}" >> tests/temp.c
+fi
+if [ ! `echo $1 | egrep 'assignment4'` ]; then
   echo -n "}" >> tests/temp.c
 fi
 
 if [[ $value = "ERROR" ]]; then
-    result=`racket -Ve '(load "interpreter.scm")(interpret "tests/temp.c")(exit)' 2>&1 1>/dev/null`
+    result=`racket -Ve '(load "interpreter.scm")(interpret "tests/temp.c" "Main")(exit)' 2>&1 1>/dev/null`
 else
-    result=`racket -e '(load "interpreter.scm")(interpret "tests/temp.c")(exit)' 2>&1`
+    result=`racket -e '(load "interpreter.scm")(interpret "tests/temp.c" "Main")(exit)' 2>&1`
 fi
 
 result=`echo $result | sed -e 's/^ *//g'`
@@ -41,7 +48,7 @@ if [[ $value = $result || ( $value = "ERROR" && $result ) ]] ; then
     echo pass >> tests/results.txt
     exit
 else
-    echo -e "$WHITE |--> $RED[failed] $WHITE\n    Expected \"$value\", got \"$result\" "
+    echo -e "$WHITE |--> $RED[failed] $WHITE\n    Expected \"$value\", got \"$result\""
     echo fail >> tests/results.txt
     exit
 fi
