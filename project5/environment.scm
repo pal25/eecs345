@@ -1,17 +1,13 @@
-(define newenv (cons (cons 
-		            (cons (box 'return) '())
-			          (cons (cons (box 'void) '())
-					    '()))
-		          '()))
+(define empty-env (list (list '() '())))
 
 (define create-func-env
   (lambda (formal-params values env)
     (letrec ((add-bindings 
 	            (lambda (formal values env newenv)
 		      (cond
-		        ((null? formal) newenv)
-			 ((eq? (car formal) '&) (add-bindings (cddr formal) (cdr values) env (env-bind-box (cadr formal) (env-lookup-extra (car values) env top-val-box) newenv)))
-			  (else (add-bindings (cdr formal) (cdr values) env (env-bind (car formal) (interpret-value (car values) env) newenv)))))))
+		       ((null? formal) newenv)
+			((eq? (car formal) '&) (add-bindings (cddr formal) (cdr values) env (env-bind-box (cadr formal) (env-lookup-extra (car values) env top-val-box) newenv)))
+			(else (add-bindings (cdr formal) (cdr values) env (env-bind (car formal) (interpret-value (car values) env) newenv)))))))
       (add-bindings formal-params values env (env-push-layer (env-global-layer env))))))
 
 (define env-global-layer
@@ -55,13 +51,13 @@
 
 (define env-bind
   (lambda (var val env)
-    (cons (cons (cons (box var) (car (top-layer env))) 
+    (cons (cons (cons var (car (top-layer env))) 
 		(cons (cons (box val) (cadr (top-layer env))) '()))
-	    (env-pop-layer env))))
+	  (env-pop-layer env))))
 
 (define env-bind-box
   (lambda (var val env)
-    (cons (cons (cons (box var) (car (top-layer env)))
+    (cons (cons (cons var (car (top-layer env)))
 		(cons (cons val (cadr (top-layer env))) '()))
 	    (env-pop-layer env))))
 
@@ -71,7 +67,7 @@
 	            (lambda (var val env)
 		      (cond
 		        ((env-declared-layer? var (top-layer env)) (begin (set-box! (env-lookup-extra var env top-val-box) val) env))
-			 (else (cons (top-layer env) (env-update-checked var val (env-pop-layer env))))))))
+			(else (cons (top-layer env) (env-update-checked var val (env-pop-layer env))))))))
       (cond
        ((not (env-declared? var env)) (error "Error: Variable not declared"))
        (else (env-update-checked var val env))))))
@@ -87,7 +83,7 @@
   (lambda (layer)
     (cond
      ((null? (car layer)) '())
-     (else (unbox (car (car layer)))))))
+     (else (car (car layer))))))
 
 (define top-val
   (lambda (layer)
@@ -108,3 +104,5 @@
 (define layer-pop-top
   (lambda (layer)
     (cons (cdar layer) (cons (cdadr layer) '()))))
+
+(define newenv (env-bind 'return 'None empty-env))

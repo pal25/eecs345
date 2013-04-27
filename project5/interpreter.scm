@@ -34,7 +34,7 @@
 (define interpret-func-call
   (lambda (func-name values env)
     (cond
-     ((eq? 'void (env-lookup 'return (return-env func-name values env))) env);(env-pop-layer (return-env func-name values env)))
+     ((eq? 'None (env-lookup 'return (return-env func-name values env))) env)
      (else (env-lookup 'return (return-env func-name values env))))))
 
 (define return-env
@@ -43,8 +43,7 @@
      (lambda (return)
        (interpret-stmt-list (cadr (env-lookup func-name env))
 			        (create-func-env (car (env-lookup func-name env)) values env)
-				   ;(create-func-env (car (env-lookup func-name env)) (interpret-called-values values env) env)
-				    return undef-break undef-continue)))))
+				return undef-break undef-continue)))))
 
 (define interpret-called-values
   (lambda (values env)
@@ -66,20 +65,6 @@
      ((eq? 'funcall (car stmt)) (interpret-func-call (cadr stmt) (cddr stmt) env))
      (else (error "Error: Not a valid statement")))))
 
-(define interpret-sidefx
-  (lambda (stmt env)
-    (cond
-     ((number? stmt) env)
-     ((atom? stmt) env)
-     ((eq? '! (car stmt)) (interpret-sidefx (LHS stmt) env))
-     ((and (eq? '- (car stmt)) (eq? 2 (length stmt))) (interpret-sidefx (LHS stmt) env))
-     ((member? (car stmt) '(+ - * / % == != > >= < <= && ||)) 
-      (interpret-sidefx (RHS stmt) (interpret-sidefx (LHS stmt) env)))
-     ((eq? 'begin (car stmt)) env)
-     ((eq? 'break (car stmt)) env)
-     ((eq? 'funcall (car stmt)) env)
-     (else (interpret-stmt stmt env undef-return undef-break undef-continue)))))
-
 (define interpret-begin
   (lambda (stmt env return break continue)
     (let ((pop-break (lambda (break-env) (break (env-pop-layer break-env))))
@@ -93,34 +78,41 @@
 				       (cond
 					 ((eq? (interpret-value condition env) 'true) 
 					    (loop condition body (call/cc (lambda (continue)
-									      (interpret-stmt body (interpret-sidefx condition env) return break continue)))))
-					  (else (interpret-sidefx condition env))))))
+									      (interpret-stmt body env return break continue)))))
+					  (else env)))))
 			 (loop (cadr stmt) (caddr stmt) env))))))
     
 (define interpret-assign
   (lambda (stmt env)
-    (env-update (LHS stmt) (interpret-value (RHS stmt) env) (interpret-sidefx (RHS stmt) env))))
+    (if (and (list? (RHS stmt)) (eq? '= (operator (RHS stmt))))
+	(let ((sidefx-env (interpret-assign (RHS stmt) env)))
+	  (env-update (LHS stmt) (env-lookup (operand1 (RHS stmt)) sidefx-env) sidefx-env))
+	(env-update (LHS stmt) (interpret-value (RHS stmt) env) env))))
   
 (define interpret-var
   (lambda (stmt env)
     (cond
      ((env-declared-layer? (LHS stmt) (top-layer env)) (error "Error: Cant redeclare variables"))
      ((null? (cddr stmt)) (env-bind (LHS stmt) 'NEWVAR env))
-     (else (env-bind (LHS stmt) (interpret-value (RHS stmt) env) (interpret-sidefx (RHS stmt) env))))))
+     (else (if (and (list? (RHS stmt)) (eq? '= (operator (RHS stmt))))
+	       (let ((sidefx-env (interpret-assign (RHS stmt) env)))
+		 (env-bind (LHS stmt) (env-lookup (operand1 (RHS stmt)) sidefx-env) sidefx-env))
+	       (env-bind (LHS stmt) (interpret-value (RHS stmt) env) env))))))
+
   
 (define interpret-return
   (lambda (stmt env)
     (cond
      ((and (pair? (cadr stmt)) (eq? 'funcall (caadr stmt))) (env-bind 'return (interpret-func-call (cadadr stmt) (cddadr stmt) env) env))
-    (else (env-bind 'return (interpret-value (LHS stmt) env) (interpret-sidefx (LHS stmt) env))))))
+    (else (env-bind 'return (interpret-value (LHS stmt) env) env)))))
   
 (define interpret-if
   (lambda (stmt env return break continue)
     (cond
      ((eq? (interpret-value (cadr stmt) env) 'true) 
-      (interpret-stmt (caddr stmt) (interpret-sidefx (cadr stmt) env) return break continue))
+      (interpret-stmt (caddr stmt) env return break continue))
      ((interpret-else? stmt) 
-      (interpret-stmt (cadddr stmt) (interpret-sidefx (cadr stmt) env) return break continue))
+      (interpret-stmt (cadddr stmt) env return break continue))
      (else env))))
      
 (define interpret-else?
@@ -138,7 +130,7 @@
      ((eq? stmt 'false) 'false)
      ((atom? stmt) (env-lookup stmt env))
      ((eq? 'funcall (operator stmt)) (interpret-func-call (cadr stmt) (cddr stmt) env))
-     ((eq? '= (operator stmt)) (interpret-value (car (cddr stmt)) env))
+     ((eq? '= (operator stmt)) (env-lookup (operand1 stmt) (interpret-assign stmt env)))
      ((eq? '+ (operator stmt)) ((interpret-binary +) stmt env))
      ((eq? '- (operator stmt)) ((interpret-negative -) stmt env))
      ((eq? '* (operator stmt)) ((interpret-binary *) stmt env))
@@ -180,7 +172,7 @@
   (lambda (op)
     (lambda (stmt env)
       (cond
-       ((op (interpret-value (operand1 stmt) env) (interpret-value (operand2 stmt) (interpret-sidefx (operand1 stmt) env))) 'true)
+       ((op (interpret-value (operand1 stmt) env) (interpret-value (operand2 stmt) env)) 'true)
        (else 'false)))))
     
 
@@ -188,7 +180,7 @@
   (lambda (op)
     (lambda (stmt env)
       (op (interpret-value (operand1 stmt) env)
-	    (interpret-value (operand2 stmt) (interpret-sidefx (operand1 stmt) env))))))
+	    (interpret-value (operand2 stmt) env)))))
 
 (define interpret-negative
   (lambda (op)
