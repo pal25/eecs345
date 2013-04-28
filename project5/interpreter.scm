@@ -1,5 +1,6 @@
 (load "functionParser.scm")
 (load "environment.scm")
+(load "functions.scm")
 
 (define call/cc call-with-current-continuation)
 
@@ -19,10 +20,6 @@
      ((eq? 'function (car stmt)) (interpret-func-declare stmt env))
      (else (interpret-stmt stmt env undef-return undef-break undef-continue)))))
 
-(define interpret-func-declare
-  (lambda (stmt env)
-    (env-bind (cadr stmt) (cddr stmt) env)))
-
 (define interpret-stmt-list
   (lambda (parsetree env return break continue)
     (cond
@@ -30,26 +27,6 @@
      (else (interpret-stmt-list (cdr parsetree) 
 				(interpret-stmt (car parsetree)env return break continue)
 				return break continue)))))
-
-(define interpret-func-call
-  (lambda (func-name values env)
-    (cond
-     ((eq? 'None (env-lookup 'return (return-env func-name values env))) env)
-     (else (env-lookup 'return (return-env func-name values env))))))
-
-(define return-env
-  (lambda (func-name values env)
-    (call/cc
-     (lambda (return)
-       (interpret-stmt-list (cadr (env-lookup func-name env))
-			        (create-func-env (car (env-lookup func-name env)) values env)
-				return undef-break undef-continue)))))
-
-(define interpret-called-values
-  (lambda (values env)
-    (cond
-     ((null? values) '())
-     (else (cons (interpret-value (car values) env) (interpret-called-values (cdr values) env))))))
 
 (define interpret-stmt
   (lambda (stmt env return break continue)
@@ -142,24 +119,32 @@
      ((eq? '<= (operator stmt)) ((interpret-boolean <=) stmt env))
      ((eq? '!= (operator stmt)) ((interpret-boolean (lambda (a b) (not (eq? a b)))) stmt env))
      ((eq? '== (operator stmt)) ((interpret-boolean (lambda (a b) (eq? a b))) stmt env))
-     ((eq? '|| (operator stmt)) ((interpret-boolean (lambda (a b)
-						            (cond
-							            ((and (eq? a 'true) (eq? b 'true)) #t)
-								           ((and (eq? a 'true) (eq? b 'false)) #t)
-									          ((and (eq? a 'false) (eq? b 'true)) #t)
-										         ((and (eq? a 'false) (eq? b 'false)) #f))))
-				  stmt env))
-     ((eq? '&& (operator stmt)) ((interpret-boolean (lambda (a b)
-						             (cond
-							             ((and (eq? a 'true) (eq? b 'true)) #t)
-								            ((and (eq? a 'true) (eq? b 'false)) #f)
-									           ((and (eq? a 'false) (eq? b 'true)) #f)
-										          ((and (eq? a 'false) (eq? b 'false)) #f))))
-				  stmt env))
-     ((eq? '! (operator stmt)) ((interpret-unary-boolean (lambda (a) (cond ((eq? a 'true) #f)
-									      ((eq? a 'false) #t))))
-				stmt env))
+     ((eq? '|| (operator stmt)) ((interpret-boolean boolean-or) stmt env))
+     ((eq? '&& (operator stmt)) ((interpret-boolean boolean-and) stmt env))
+     ((eq? '! (operator stmt)) ((interpret-unary-boolean boolean-not) stmt env))
      (else (error "Invalid expression")))))
+
+(define boolean-or
+  (lambda (a b)
+    (cond
+     ((and (eq? a 'true) (eq? b 'true)) #t)
+     ((and (eq? a 'true) (eq? b 'false)) #t)
+     ((and (eq? a 'false) (eq? b 'true)) #t)
+     ((and (eq? a 'false) (eq? b 'false)) #f))))
+
+(define boolean-and
+  (lambda (a b)
+    (cond
+     ((and (eq? a 'true) (eq? b 'true)) #t)
+     ((and (eq? a 'true) (eq? b 'false)) #f)
+     ((and (eq? a 'false) (eq? b 'true)) #f)
+     ((and (eq? a 'false) (eq? b 'false)) #f))))
+
+(define boolean-not
+  (lambda (a) 
+    (cond 
+     ((eq? a 'true) #f) 
+     ((eq? a 'false) #t))))
 
 (define interpret-unary-boolean
   (lambda (op)
@@ -175,7 +160,6 @@
        ((op (interpret-value (operand1 stmt) env) (interpret-value (operand2 stmt) env)) 'true)
        (else 'false)))))
     
-
 (define interpret-binary
   (lambda (op)
     (lambda (stmt env)
