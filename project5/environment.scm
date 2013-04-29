@@ -1,14 +1,5 @@
 (define empty-env (list (list '() '())))
 
-(define create-func-env
-  (lambda (formal-params values env)
-    (letrec ((add-bindings 
-	            (lambda (formal values env newenv)
-		      (cond
-		       ((null? formal) newenv)
-			((eq? (car formal) '&) (add-bindings (cddr formal) (cdr values) env (env-bind-box (cadr formal) (env-lookup-extra (car values) env top-val-box) newenv)))
-			(else (add-bindings (cdr formal) (cdr values) env (env-bind (car formal) (interpret-value (car values) env) newenv)))))))
-      (add-bindings formal-params values env (env-push-layer (env-global-layer env))))))
 
 (define env-global-layer
   (lambda (env)

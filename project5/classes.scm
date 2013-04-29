@@ -1,14 +1,20 @@
 (load "environment.scm")
 
+(define interpret-class-declare-list
+  (lambda (parsetree env)
+    (cond
+     ((null? parsetree) env)
+     (else (interpret-class-declare-list (cdr parsetree) (interpret-class-declare (car parsetree) env))))))
+
 (define interpret-class-declare
   (lambda (class env)
     (let* ((name (cadr class))
 	   (body (cadddr class))
 	   (parent (if (null? (caddr class)) '() (cadr (caddr class))))
 	   (class-env (list empty-env empty-env empty-env parent)))
-      (env-bind name (interpret-class-list body class-env) env))))
+      (env-bind name (interpret-class-stmt-list body class-env) env))))
 
-(define interpret-class-list
+(define interpret-class-stmt-list
   (lambda (body class-env)
     (cond
      ((null? body) class-env)
@@ -23,7 +29,7 @@
 					 (interpret-func-declare stmt (class-methodenv class-env))
 					 (class-parent class-env)))
      ((eq? 'static-var (car stmt)) (list
-				    (interpret-var stmt (class-varenv class-env))
+				    (interpret-declare stmt (class-varenv class-env))
 				    (inst-varenv class-env)
 				    (class-methodenv class-env)
 				    (class-parent class-env))))))

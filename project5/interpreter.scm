@@ -5,8 +5,16 @@
 (define call/cc call-with-current-continuation)
 
 (define interpret
+  ;(lambda (filename class)
   (lambda (filename)
-    (interpret-func-call 'main '() (interpret-global-stmt-list (parser filename) newenv))))
+    (interpret-func-call '(funcall main) 
+			 (interpret-global-stmt-list (parser filename) newenv)
+			 undef-return undef-break undef-continue
+			 identity undef-inst)))
+    ;(interpret-func-call '(funcall main) 
+			 ;(interpret-class-declare-list (parser filename) newenv)
+			 ;undef-return undef-break undef-continue
+			 ;(string->symbol class) undef-inst)))
 
 (define interpret-global-stmt-list
   (lambda (parsetree env)
@@ -18,78 +26,77 @@
   (lambda (stmt env)
     (cond
      ((eq? 'function (car stmt)) (interpret-func-declare stmt env))
-     (else (interpret-stmt stmt env undef-return undef-break undef-continue)))))
+     (else (interpret-stmt stmt env undef-return undef-break undef-continue identity identity)))))
 
 (define interpret-stmt-list
-  (lambda (parsetree env return break continue)
+  (lambda (parsetree env return break continue cls inst)
     (cond
      ((null? parsetree) env)
      (else (interpret-stmt-list (cdr parsetree) 
-				(interpret-stmt (car parsetree)env return break continue)
-				return break continue)))))
+				(interpret-stmt (car parsetree) env return break continue cls inst)
+				return break continue
+				cls inst)))))
 
 (define interpret-stmt
-  (lambda (stmt env return break continue)
+  (lambda (stmt env return break continue cls inst)
     (cond
-     ((eq? '= (car stmt)) (interpret-assign stmt env))
-     ((eq? 'var (car stmt)) (interpret-var stmt env))
-     ((eq? 'if (car stmt)) (interpret-if stmt env return break continue))
-     ((eq? 'while (car stmt)) (interpret-while stmt env return))
+     ((eq? '= (car stmt)) (interpret-assign stmt env cls inst))
+     ((eq? 'var (car stmt)) (interpret-declare stmt env cls inst))
+     ((eq? 'if (car stmt)) (interpret-if stmt env return break continue cls inst))
+     ((eq? 'while (car stmt)) (interpret-while stmt env return cls inst))
      ((eq? 'break (car stmt)) (break env))
      ((eq? 'continue (car stmt)) (continue env))
-     ((eq? 'begin (car stmt)) (interpret-begin stmt env return break continue))
-     ((eq? 'return (car stmt)) (return (interpret-return stmt env)))
-     ((eq? 'funcall (car stmt)) (interpret-func-call (cadr stmt) (cddr stmt) env))
+     ((eq? 'begin (car stmt)) (interpret-begin stmt env return break continue cls inst))
+     ((eq? 'return (car stmt)) (return (interpret-return stmt env return cls inst)))
+     ((eq? 'funcall (car stmt)) (interpret-func-call stmt env return break continue cls inst))
      (else (error "Error: Not a valid statement")))))
 
 (define interpret-begin
-  (lambda (stmt env return break continue)
+  (lambda (stmt env return break continue cls inst)
     (let ((pop-break (lambda (break-env) (break (env-pop-layer break-env))))
 	    (pop-continue (lambda (continue-env) (continue (env-pop-layer continue-env)))))
-      (env-pop-layer (interpret-stmt-list (cdr stmt) (env-push-layer env) return pop-break pop-continue)))))
+      (env-pop-layer (interpret-stmt-list (cdr stmt) (env-push-layer env) return pop-break pop-continue cls inst)))))
 
 (define interpret-while
-  (lambda (stmt env return)
+  (lambda (stmt env return cls inst)
     (call/cc (lambda (break)
-	              (letrec ((loop (lambda (condition body env)
-				       (cond
-					 ((eq? (interpret-value condition env) 'true) 
-					    (loop condition body (call/cc (lambda (continue)
-									      (interpret-stmt body env return break continue)))))
-					  (else env)))))
-			 (loop (cadr stmt) (caddr stmt) env))))))
+	       (letrec ((loop (lambda (condition body env)
+				(cond
+				 ((eq? (interpret-value condition env cls inst) 'true) 
+				  (loop condition body (call/cc (lambda (continue)
+								  (interpret-stmt body env return break continue cls inst)))))
+				 (else env)))))
+		 (loop (cadr stmt) (caddr stmt) env))))))
     
 (define interpret-assign
-  (lambda (stmt env)
+  (lambda (stmt env cls inst)
     (if (and (list? (RHS stmt)) (eq? '= (operator (RHS stmt))))
-	(let ((sidefx-env (interpret-assign (RHS stmt) env)))
+	(let ((sidefx-env (interpret-assign (RHS stmt) env cls inst)))
 	  (env-update (LHS stmt) (env-lookup (operand1 (RHS stmt)) sidefx-env) sidefx-env))
-	(env-update (LHS stmt) (interpret-value (RHS stmt) env) env))))
+	(env-update (LHS stmt) (interpret-value (RHS stmt) env cls inst) env))))
   
-(define interpret-var
-  (lambda (stmt env)
+(define interpret-declare
+  (lambda (stmt env cls inst)
     (cond
      ((env-declared-layer? (LHS stmt) (top-layer env)) (error "Error: Cant redeclare variables"))
      ((null? (cddr stmt)) (env-bind (LHS stmt) 'NEWVAR env))
      (else (if (and (list? (RHS stmt)) (eq? '= (operator (RHS stmt))))
-	       (let ((sidefx-env (interpret-assign (RHS stmt) env)))
+	       (let ((sidefx-env (interpret-assign (RHS stmt) env cls inst)))
 		 (env-bind (LHS stmt) (env-lookup (operand1 (RHS stmt)) sidefx-env) sidefx-env))
-	       (env-bind (LHS stmt) (interpret-value (RHS stmt) env) env))))))
+	       (env-bind (LHS stmt) (interpret-value (RHS stmt) env cls inst) env))))))
 
   
 (define interpret-return
-  (lambda (stmt env)
-    (cond
-     ((and (pair? (cadr stmt)) (eq? 'funcall (caadr stmt))) (env-bind 'return (interpret-func-call (cadadr stmt) (cddadr stmt) env) env))
-    (else (env-bind 'return (interpret-value (LHS stmt) env) env)))))
-  
+  (lambda (stmt env return cls inst)
+    (interpret-value (LHS stmt) env cls inst)))
+
 (define interpret-if
-  (lambda (stmt env return break continue)
+  (lambda (stmt env return break continue cls inst)
     (cond
-     ((eq? (interpret-value (cadr stmt) env) 'true) 
-      (interpret-stmt (caddr stmt) env return break continue))
+     ((eq? (interpret-value (cadr stmt) env cls inst) 'true) 
+      (interpret-stmt (caddr stmt) env return break continue cls inst))
      ((interpret-else? stmt) 
-      (interpret-stmt (cadddr stmt) env return break continue))
+      (interpret-stmt (cadddr stmt) env return break continue cls inst))
      (else env))))
      
 (define interpret-else?
@@ -99,29 +106,29 @@
      (else #t))))
 
 (define interpret-value
-  (lambda (stmt env)
+  (lambda (stmt env cls inst)
     (cond
      ((null? stmt) '())
      ((number? stmt) stmt)
      ((eq? stmt 'true) 'true)
      ((eq? stmt 'false) 'false)
      ((atom? stmt) (env-lookup stmt env))
-     ((eq? 'funcall (operator stmt)) (interpret-func-call (cadr stmt) (cddr stmt) env))
-     ((eq? '= (operator stmt)) (env-lookup (operand1 stmt) (interpret-assign stmt env)))
-     ((eq? '+ (operator stmt)) ((interpret-binary +) stmt env))
-     ((eq? '- (operator stmt)) ((interpret-negative -) stmt env))
-     ((eq? '* (operator stmt)) ((interpret-binary *) stmt env))
-     ((eq? '/ (operator stmt)) ((interpret-binary quotient) stmt env))
-     ((eq? '% (operator stmt)) ((interpret-binary remainder) stmt env))
-     ((eq? '> (operator stmt)) ((interpret-boolean >) stmt env))
-     ((eq? '< (operator stmt)) ((interpret-boolean <) stmt env))
-     ((eq? '>= (operator stmt)) ((interpret-boolean >=) stmt env))
-     ((eq? '<= (operator stmt)) ((interpret-boolean <=) stmt env))
-     ((eq? '!= (operator stmt)) ((interpret-boolean (lambda (a b) (not (eq? a b)))) stmt env))
-     ((eq? '== (operator stmt)) ((interpret-boolean (lambda (a b) (eq? a b))) stmt env))
-     ((eq? '|| (operator stmt)) ((interpret-boolean boolean-or) stmt env))
-     ((eq? '&& (operator stmt)) ((interpret-boolean boolean-and) stmt env))
-     ((eq? '! (operator stmt)) ((interpret-unary-boolean boolean-not) stmt env))
+     ((eq? 'funcall (operator stmt)) (interpret-func-call stmt env undef-return undef-break undef-continue cls inst))
+     ((eq? '= (operator stmt)) (env-lookup (operand1 stmt) (interpret-assign stmt env cls inst)))
+     ((eq? '+ (operator stmt)) ((interpret-binary +) stmt env cls inst))
+     ((eq? '- (operator stmt)) ((interpret-negative -) stmt env cls inst))
+     ((eq? '* (operator stmt)) ((interpret-binary *) stmt env cls inst))
+     ((eq? '/ (operator stmt)) ((interpret-binary quotient) stmt env cls inst))
+     ((eq? '% (operator stmt)) ((interpret-binary remainder) stmt env cls inst))
+     ((eq? '> (operator stmt)) ((interpret-boolean >) stmt env cls inst))
+     ((eq? '< (operator stmt)) ((interpret-boolean <) stmt env cls inst))
+     ((eq? '>= (operator stmt)) ((interpret-boolean >=) stmt env cls inst))
+     ((eq? '<= (operator stmt)) ((interpret-boolean <=) stmt env cls inst))
+     ((eq? '!= (operator stmt)) ((interpret-boolean (lambda (a b) (not (eq? a b)))) stmt env cls inst))
+     ((eq? '== (operator stmt)) ((interpret-boolean (lambda (a b) (eq? a b))) stmt env cls inst))
+     ((eq? '|| (operator stmt)) ((interpret-boolean boolean-or) stmt env cls inst))
+     ((eq? '&& (operator stmt)) ((interpret-boolean boolean-and) stmt env cls inst))
+     ((eq? '! (operator stmt)) ((interpret-unary-boolean boolean-not) stmt env cls inst))
      (else (error "Invalid expression")))))
 
 (define boolean-or
@@ -148,31 +155,31 @@
 
 (define interpret-unary-boolean
   (lambda (op)
-    (lambda (stmt env)
+    (lambda (stmt env cls inst)
       (cond
-       ((op (interpret-value (operand1 stmt) env)) 'true)
+       ((op (interpret-value (operand1 stmt) env cls inst)) 'true)
        (else 'false)))))
 
 (define interpret-boolean
   (lambda (op)
-    (lambda (stmt env)
+    (lambda (stmt env cls inst)
       (cond
-       ((op (interpret-value (operand1 stmt) env) (interpret-value (operand2 stmt) env)) 'true)
+       ((op (interpret-value (operand1 stmt) env cls inst) (interpret-value (operand2 stmt) env cls inst)) 'true)
        (else 'false)))))
     
 (define interpret-binary
   (lambda (op)
-    (lambda (stmt env)
-      (op (interpret-value (operand1 stmt) env)
-	    (interpret-value (operand2 stmt) env)))))
+    (lambda (stmt env cls inst)
+      (op (interpret-value (operand1 stmt) env cls inst)
+	    (interpret-value (operand2 stmt) env cls inst)))))
 
 (define interpret-negative
   (lambda (op)
-    (lambda (stmt env)
+    (lambda (stmt env cls inst)
       (cond
-       ((null? (cddr stmt)) (* -1 (interpret-value (operand1 stmt) env)))
-       (else (op (interpret-value (operand1 stmt) env)
-		  (interpret-value (operand2 stmt) env)))))))
+       ((null? (cddr stmt)) (* -1 (interpret-value (operand1 stmt) env cls inst)))
+       (else (op (interpret-value (operand1 stmt) env cls inst)
+		  (interpret-value (operand2 stmt) env cls inst)))))))
 
 (define operator
   (lambda (expr)
@@ -216,3 +223,9 @@
 (define undef-continue
   (lambda (stmt)
     (error "Continue cannot be used in this context")))
+
+(define undef-inst
+  (lambda (stmt)
+    (begin
+      (display stmt) (newline)
+      (error "Inst cannot be used in this context"))))
