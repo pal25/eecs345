@@ -1,6 +1,5 @@
 (define empty-env (list (list '() '())))
 
-
 (define env-global-layer
   (lambda (env)
     (cond
@@ -29,7 +28,7 @@
 (define env-lookup-extra
   (lambda (var env get-top-val)
     (cond
-     ((null? env) (error "Error: Variable not in environment"))
+     ((null? env) '())
      ((env-declared-layer? var (top-layer env)) (env-lookup-layer var (top-layer env) get-top-val))
      (else (env-lookup-extra var (env-pop-layer env) get-top-val)))))
 

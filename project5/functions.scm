@@ -16,7 +16,7 @@
     (call/cc
      (lambda (new-return)
        (let* ((func-name (cadr stmt))
-	      (func-def (env-lookup func-name env))
+	      (func-def (class-lookup func-name cls env))
 	      (func-values (cddr stmt))
 	      (func-formal (car func-def))
 	      (func-body (cadr func-def))
@@ -26,6 +26,10 @@
 
 (define func-bind-values
   (lambda (func-values func-formal env cls inst)
+    ;(begin (display "BINDING PARAMS: ") (newline)
+	   ;(display "VALUES: ") (display func-values) (newline)
+	   ;(display "FORMAL: ") (display func-formal) (newline) 
+	   ;(display "ENV: ") (display env) (newline) (newline))
     (cond
      ((null? func-formal) env)
      ((eq? (car func-formal) '&) (env-bind-box (cadr func-formal) 

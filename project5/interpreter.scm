@@ -1,20 +1,20 @@
-(load "functionParser.scm")
+(load "classParser.scm")
 (load "environment.scm")
 (load "functions.scm")
+(load "classes.scm")
 
 (define call/cc call-with-current-continuation)
 
 (define interpret
-  ;(lambda (filename class)
-  (lambda (filename)
-    (interpret-func-call '(funcall main) 
-			 (interpret-global-stmt-list (parser filename) newenv)
-			 undef-return undef-break undef-continue
-			 identity undef-inst)))
+  (lambda (filename class)
     ;(interpret-func-call '(funcall main) 
-			 ;(interpret-class-declare-list (parser filename) newenv)
+			 ;(interpret-global-stmt-list (parser filename) newenv)
 			 ;undef-return undef-break undef-continue
-			 ;(string->symbol class) undef-inst)))
+			 ;identity undef-inst)))
+    (interpret-func-call '(funcall main) 
+			 (interpret-class-declare-list (parser filename) newenv)
+			 undef-return undef-break undef-continue
+			 (string->symbol class) undef-inst)))
 
 (define interpret-global-stmt-list
   (lambda (parsetree env)
@@ -39,6 +39,7 @@
 
 (define interpret-stmt
   (lambda (stmt env return break continue cls inst)
+    ;(begin (display "INTERPRET STMT: ") (display stmt) (newline) (newline))
     (cond
      ((eq? '= (car stmt)) (interpret-assign stmt env cls inst))
      ((eq? 'var (car stmt)) (interpret-declare stmt env cls inst))
@@ -70,10 +71,12 @@
     
 (define interpret-assign
   (lambda (stmt env cls inst)
-    (if (and (list? (RHS stmt)) (eq? '= (operator (RHS stmt))))
-	(let ((sidefx-env (interpret-assign (RHS stmt) env cls inst)))
-	  (env-update (LHS stmt) (env-lookup (operand1 (RHS stmt)) sidefx-env) sidefx-env))
-	(env-update (LHS stmt) (interpret-value (RHS stmt) env cls inst) env))))
+    (cond
+     ((not (env-declared? (LHS stmt) env)) (error "Error: Variable undeclared"))
+     (else (if (and (list? (RHS stmt)) (eq? '= (operator (RHS stmt))))
+	       (let ((sidefx-env (interpret-assign (RHS stmt) env cls inst)))
+		 (env-update (LHS stmt) (env-lookup (operand1 (RHS stmt)) sidefx-env) sidefx-env))
+	       (env-update (LHS stmt) (interpret-value (RHS stmt) env cls inst) env))))))
   
 (define interpret-declare
   (lambda (stmt env cls inst)
@@ -107,12 +110,15 @@
 
 (define interpret-value
   (lambda (stmt env cls inst)
+    ;(begin (display "INTERPRET VALUE: ") (display stmt) (newline) (newline))
     (cond
      ((null? stmt) '())
      ((number? stmt) stmt)
      ((eq? stmt 'true) 'true)
      ((eq? stmt 'false) 'false)
-     ((atom? stmt) (env-lookup stmt env))
+     ((atom? stmt) (if (null? (class-lookup stmt cls env)) 
+		       (error "Variable not declared")
+		       (class-lookup stmt cls env)))
      ((eq? 'funcall (operator stmt)) (interpret-func-call stmt env undef-return undef-break undef-continue cls inst))
      ((eq? '= (operator stmt)) (env-lookup (operand1 stmt) (interpret-assign stmt env cls inst)))
      ((eq? '+ (operator stmt)) ((interpret-binary +) stmt env cls inst))

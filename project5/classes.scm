@@ -18,7 +18,7 @@
   (lambda (body class-env)
     (cond
      ((null? body) class-env)
-     (else (interpret-class-list (cdr body) (interpret-class-stmt (car body) class-env))))))
+     (else (interpret-class-stmt-list (cdr body) (interpret-class-stmt (car body) class-env))))))
 
 (define interpret-class-stmt
   (lambda (stmt class-env)
@@ -29,7 +29,7 @@
 					 (interpret-func-declare stmt (class-methodenv class-env))
 					 (class-parent class-env)))
      ((eq? 'static-var (car stmt)) (list
-				    (interpret-declare stmt (class-varenv class-env))
+				    (interpret-declare stmt (class-varenv class-env) class-env undef-inst)
 				    (inst-varenv class-env)
 				    (class-methodenv class-env)
 				    (class-parent class-env))))))
@@ -43,6 +43,21 @@
 (define class-methodenv (lambda (class-env) (caddr class-env)))
 (define class-parent (lambda (class-env) (cadddr class-env)))
 
+(define class-lookup
+  (lambda (name cls-name env)
+    ;(begin (display "NAME: ") (display name) (newline) 
+	   ;(display "CLS_NAME: ") (display cls-name) (newline)
+	   ;(display "ENV: ") (display env) (newline) (newline))
+    (let ((class-env (env-lookup cls-name env)))
+      (if (null? (env-lookup name (class-varenv class-env)))
+	  (if (null? (env-lookup name (class-methodenv class-env)))
+	      (if (or (null? (class-parent class-env))
+		      (null? (class-lookup name (class-parent class-env) env)))
+		  (env-lookup name env)
+		  (class-lookup name (class-parent class-env) env))
+	      (env-lookup name (class-methodenv class-env)))
+	  (env-lookup name (class-varenv class-env))))))
+	   
 (define class-method-lookup 
   (lambda (method class-env) 
     (env-lookup-layer method (class-methodenv class-env) top-val-box)))
