@@ -35,12 +35,3 @@
 		     (interpret-value (car func-values) env cls inst)
 		     (func-bind-values (cdr func-values) (cdr func-formal) env cls inst))))))
 
-;(define create-func-env
-;  (lambda (formal-params values env cls inst)
-;    (letrec ((add-bindings
-;	            (lambda (formal values env newenv)
-;		      (cond
-;		       ((null? formal) newenv)
-;			((eq? (car formal) '&) (add-bindings (cddr formal) (cdr values) env (env-bind-box (cadr formal) (env-lookup-extra (car values) env top-val-box) newenv)))
-;			(else (add-bindings (cdr formal) (cdr values) env (env-bind (car formal) (interpret-value (car values) env cls inst) newenv)))))))
-;      (add-bindings formal-params values env (env-push-layer (env-global-layer env))))))
