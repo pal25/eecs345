@@ -1,5 +1,5 @@
 description: Example from assignment
-value: dunnoyet
+value: 400
 
 class Rectangle {
   static var width = 10;

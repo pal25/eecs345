@@ -72,11 +72,12 @@
 (define interpret-assign
   (lambda (stmt env cls inst)
     (cond
-     ((not (env-declared? (LHS stmt) env)) (error "Error: Variable undeclared"))
+     ((null? (class-lookup (LHS stmt) cls env)) (error "Error: Variable undeclared"))
      (else (if (and (list? (RHS stmt)) (eq? '= (operator (RHS stmt))))
 	       (let ((sidefx-env (interpret-assign (RHS stmt) env cls inst)))
-		 (env-update (LHS stmt) (env-lookup (operand1 (RHS stmt)) sidefx-env) sidefx-env))
-	       (env-update (LHS stmt) (interpret-value (RHS stmt) env cls inst) env))))))
+		 ;(env-update (LHS stmt) (env-lookup (operand1 (RHS stmt)) sidefx-env) sidefx-env))
+	         (class-update (LHS stmt) (class-lookup (operand1 (RHS stmt)) cls sidefx-env) cls sidefx-env))
+	       (class-update (LHS stmt) (interpret-value (RHS stmt) env cls inst) cls env))))))
   
 (define interpret-declare
   (lambda (stmt env cls inst)
@@ -87,7 +88,6 @@
 	       (let ((sidefx-env (interpret-assign (RHS stmt) env cls inst)))
 		 (env-bind (LHS stmt) (env-lookup (operand1 (RHS stmt)) sidefx-env) sidefx-env))
 	       (env-bind (LHS stmt) (interpret-value (RHS stmt) env cls inst) env))))))
-
   
 (define interpret-return
   (lambda (stmt env return cls inst)
@@ -108,6 +108,18 @@
      ((null? (cdddr stmt)) #f)
      (else #t))))
 
+(define interpret-dot-value
+  (lambda (stmt env cls inst)
+    (cond
+     ((eq? (LHS stmt) 'super) (class-lookup (RHS stmt) (class-parent (env-lookup cls env)) env))
+     (else (class-lookup (RHS stmt) (LHS stmt) env)))))
+
+(define interpret-dot-class
+  (lambda (stmt env cls inst)
+    (cond
+     ((eq? (LHS stmt) 'super) (class-parent (env-lookup cls env)))
+     (else (LHS stmt)))))
+	  
 (define interpret-value
   (lambda (stmt env cls inst)
     ;(begin (display "INTERPRET VALUE: ") (display stmt) (newline) (newline))
@@ -119,6 +131,7 @@
      ((atom? stmt) (if (null? (class-lookup stmt cls env)) 
 		       (error "Variable not declared")
 		       (class-lookup stmt cls env)))
+     ((eq? 'dot (operator stmt)) (interpret-value (interpret-dot-value stmt env cls inst) env cls inst))
      ((eq? 'funcall (operator stmt)) (interpret-func-call stmt env undef-return undef-break undef-continue cls inst))
      ((eq? '= (operator stmt)) (env-lookup (operand1 stmt) (interpret-assign stmt env cls inst)))
      ((eq? '+ (operator stmt)) ((interpret-binary +) stmt env cls inst))
