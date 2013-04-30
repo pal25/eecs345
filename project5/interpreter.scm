@@ -132,6 +132,7 @@
 		       (error "Variable not declared")
 		       (class-lookup stmt cls env)))
      ((eq? 'dot (operator stmt)) (interpret-value (interpret-dot-value stmt env cls inst) env cls inst))
+     ((eq? 'new (operator stmt)) (inst-newenv (cadr stmt)))
      ((eq? 'funcall (operator stmt)) (interpret-func-call stmt env undef-return undef-break undef-continue cls inst))
      ((eq? '= (operator stmt)) (env-lookup (operand1 stmt) (interpret-assign stmt env cls inst)))
      ((eq? '+ (operator stmt)) ((interpret-binary +) stmt env cls inst))

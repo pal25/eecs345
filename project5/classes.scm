@@ -112,4 +112,6 @@
     (env-lookup-layer var (class-varenv class-env) top-val-box)))
 
 ; inst-newenv = (inst-varvals type)
-(define inst-newenv '(() None))
+(define inst-newenv 
+  (lambda (type)
+    (list '() type)))
